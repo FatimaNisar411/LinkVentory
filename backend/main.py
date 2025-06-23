@@ -6,6 +6,9 @@ from models.link import Link
 from routes import auth, user
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from routes.categories import router as category_router
+from routes.links import router as link_router
+
 load_dotenv()
 
 
@@ -14,7 +17,8 @@ app = FastAPI(title="LinkVentory")
 
 app.include_router(auth.router)
 app.include_router(user.router)
-
+app.include_router(category_router)
+app.include_router(link_router)
 
 app.add_middleware(
     CORSMiddleware,
