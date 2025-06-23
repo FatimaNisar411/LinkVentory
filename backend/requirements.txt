@@ -1,0 +1,6 @@
+beanie
+pydantic
+fastapi
+uvicorn
+passlib[bcrypt]
+python-jose[cryptography]
