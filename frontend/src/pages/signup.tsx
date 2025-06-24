@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AuthTopBar from "@/components/auth_top_bar";
 import {
   Card,
   CardContent,
@@ -43,7 +44,9 @@ export default function Signup() {
   };
 
   return (
-    <Card className="max-w-xl mx-auto mt-24 shadow-lg rounded-2xl">
+    <>
+          <AuthTopBar />
+    <Card className="max-w-xl mx-auto mt-24 shadow-lg rounded-2xl px-4 py-8">
       <CardHeader>
         <CardTitle className="text-2xl text-center font-bold">
           Create an Account
@@ -55,7 +58,7 @@ export default function Signup() {
 
         <form
           onSubmit={handleSignup}
-          className="space-y-6 px-2 sm:px-4 md:px-6 lg:px-8"
+          className="space-y-5 px-3 sm:px-4 md:px-5"
         >
           <Input
             type="text"
@@ -93,13 +96,11 @@ export default function Signup() {
           </Button>
         </form>
 
-        <p className="text-center mt-6 text-sm">
-          Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 hover:underline">
-            Login
-          </Link>
+        <p>
+          
         </p>
       </CardContent>
     </Card>
+    </>
   );
 }
