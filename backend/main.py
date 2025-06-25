@@ -25,10 +25,10 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000", 
         "https://linkventory.pages.dev",
-        "https://*.pages.dev",
+        "https://*.pages.dev",  # This allows all Cloudflare Pages subdomains
         "https://linkventory-production.up.railway.app"
     ],
-    allow_credentials=True,
+    allow_credentials=True,  # Must be True for Authorization headers
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
