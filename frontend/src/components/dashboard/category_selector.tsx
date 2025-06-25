@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
 interface Category {
-  id: string;
+  _id: string;  // MongoDB uses _id
   name: string;
   user_id: string;
   created_at: string;

@@ -18,27 +18,25 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ADD CORS MIDDLEWARE FIRST, BEFORE ROUTES
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000", 
         "https://linkventory.pages.dev",
-        "https://*.pages.dev",  # This allows all Cloudflare Pages subdomains
         "https://linkventory-production.up.railway.app"
     ],
-    allow_credentials=True,  # Must be True for Authorization headers
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 # THEN ADD ROUTES
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(category_router)
 app.include_router(link_router)
-
 
 # 👋 Health check
 @app.get("/ping")

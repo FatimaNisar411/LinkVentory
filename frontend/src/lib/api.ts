@@ -152,7 +152,7 @@ export async function signupUser(name: string, email: string, password: string) 
 
 // Dashboard API functions
 export interface Link {
-  id: string
+  _id: string  // MongoDB uses _id
   title: string
   url: string
   note?: string
@@ -162,14 +162,14 @@ export interface Link {
 }
 
 export interface Category {
-  id: string
+  _id: string  // MongoDB uses _id
   name: string
   user_id: string
   created_at: string
 }
 
 export interface User {
-  id: string
+  _id: string  // MongoDB uses _id
   name: string
   email: string
 }

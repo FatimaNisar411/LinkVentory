@@ -118,7 +118,7 @@ export default function Dashboard() {
         console.log('Found category object:', categoryObj)
         
         if (categoryObj) {
-          const categoryId = (categoryObj as any).id || (categoryObj as any)._id || categoryObj.id
+          const categoryId = categoryObj._id
           console.log('Category ID to use:', categoryId)
           
           if (categoryId && categoryId !== 'undefined') {
@@ -139,7 +139,7 @@ export default function Dashboard() {
       let categoryMap = new Map<string, string>()
       if (categoriesData) {
         categoriesData.forEach(cat => {
-          const catId = (cat as any).id || (cat as any)._id || cat.id
+          const catId = cat._id
           if (catId) {
             categoryMap.set(catId, cat.name)
           }
@@ -148,7 +148,7 @@ export default function Dashboard() {
         // Fetch categories if we don't have them
         const cats = await getCategories()
         cats.forEach(cat => {
-          const catId = (cat as any).id || (cat as any)._id || cat.id
+          const catId = cat._id
           if (catId) {
             categoryMap.set(catId, cat.name)
           }
@@ -163,7 +163,7 @@ export default function Dashboard() {
       const convertedLinks: Link[] = linksData.map((apiLink: ApiLink) => {
         const categoryName = apiLink.category_id ? categoryMap.get(apiLink.category_id) || "Uncategorized" : "Uncategorized"
         // Handle both 'id' and '_id' fields from the API
-        const linkId = (apiLink as any).id || (apiLink as any)._id || apiLink.id
+        const linkId = apiLink._id
         console.log(`Link "${apiLink.title}" - API ID: ${linkId}, category_id: ${apiLink.category_id}, mapped to: ${categoryName}`)
         
         return {
@@ -225,7 +225,7 @@ export default function Dashboard() {
             console.log('Creating new category:', category)
             const newCategory = await createCategory(category)
             console.log('Created new category:', newCategory)
-            categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
+            categoryId = newCategory._id  // Use _id for MongoDB
             console.log('New category ID:', categoryId)
             
             // Add the new category to our local state
@@ -237,7 +237,7 @@ export default function Dashboard() {
           // Find the category ID for existing category
           const existingCategory = categoriesData.find(cat => cat.name === category)
           if (existingCategory) {
-            categoryId = (existingCategory as any).id || (existingCategory as any)._id || existingCategory.id
+            categoryId = existingCategory._id  // Use _id for MongoDB
             console.log('Using existing category ID:', categoryId)
           }
         }
@@ -293,7 +293,7 @@ export default function Dashboard() {
             console.log('Creating new category during update:', category)
             const newCategory = await createCategory(category)
             console.log('Created new category:', newCategory)
-            categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
+            categoryId = newCategory._id
             
             // Add the new category to our local state
             setCategoriesData(prev => [...prev, newCategory])
@@ -304,7 +304,7 @@ export default function Dashboard() {
           // Find the category ID for existing category
           const existingCategory = categoriesData.find(cat => cat.name === category)
           if (existingCategory) {
-            categoryId = (existingCategory as any).id || (existingCategory as any)._id || existingCategory.id
+            categoryId = existingCategory._id
           }
         }
       }
@@ -370,7 +370,7 @@ export default function Dashboard() {
 
   const handleDeleteCategory = async (category: Category) => {
     try {
-      const categoryId = (category as any).id || (category as any)._id || category.id
+      const categoryId = category._id
       console.log('Deleting category:', category.name, 'with ID:', categoryId)
       
       await deleteCategory(categoryId)
