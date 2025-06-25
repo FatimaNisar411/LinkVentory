@@ -26,14 +26,6 @@ const REQUEST_TIMEOUT = 10000 // 10 seconds
 const isProduction = window.location.protocol === 'https:' && 
   (window.location.hostname.includes('.pages.dev') || window.location.hostname.includes('linkventory'))
 
-console.log('=== API CONFIGURATION ===')
-console.log('Environment check - isProduction:', isProduction)
-console.log('Current hostname:', window.location.hostname)
-console.log('Current protocol:', window.location.protocol)
-console.log('API_BASE_URL configured as:', API_BASE_URL)
-console.log('Current timestamp for cache busting:', Date.now())
-console.log('Deployment version:', '2025-06-25-v4-https-fix') // Cache buster
-
 // Ensure HTTPS is always used - convert any HTTP to HTTPS
 let SECURE_API_BASE_URL = API_BASE_URL.replace(/^http:\/\//i, 'https://')
 
@@ -46,13 +38,6 @@ if (!SECURE_API_BASE_URL.startsWith('https://')) {
   console.warn('WARNING: API is not using HTTPS! This is only acceptable in development.')
 }
 
-// Double check the URL construction
-const testUrl = `${SECURE_API_BASE_URL}/ping`
-console.log('Test URL construction:', testUrl)
-if (testUrl.includes('http://')) {
-  throw new Error('URL construction is creating HTTP instead of HTTPS!')
-}
-
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -62,7 +47,6 @@ export async function apiRequest<T>(
 
   try {
     const url = `${SECURE_API_BASE_URL}${endpoint}`
-    console.log('Making API request to:', url)
     
     const response = await fetch(url, {
       ...options,
@@ -74,11 +58,9 @@ export async function apiRequest<T>(
     })
 
     clearTimeout(timeoutId)
-    console.log('Response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.log('Error response data:', errorData)
       const message = errorData.detail || getErrorMessage(response.status)
       
       throw new ApiException(
@@ -89,7 +71,6 @@ export async function apiRequest<T>(
     }
 
     const data = await response.json()
-    console.log('Success response data:', data)
     return data
   } catch (error) {
     clearTimeout(timeoutId)
@@ -188,11 +169,8 @@ export interface User {
 // Get current user info
 export async function getCurrentUser() {
   const token = localStorage.getItem('token')
-  console.log('Token from localStorage:', token ? 'Token exists' : 'No token found')
   
   if (!token) throw new ApiException('No authentication token', 401, 'client')
-  
-  console.log('Making request to:', `${SECURE_API_BASE_URL}/me/`)
   
   return apiRequest<User>('/me/', {
     headers: {
@@ -216,8 +194,6 @@ export async function getLinks() {
 export async function getLinksForCategory(categoryId: string) {
   const token = localStorage.getItem('token')
   if (!token) throw new ApiException('No authentication token', 401, 'client')
-  
-  console.log('getLinksForCategory called with categoryId:', categoryId)
   
   if (!categoryId || categoryId === 'undefined') {
     throw new ApiException('Invalid category ID', 400, 'client')
