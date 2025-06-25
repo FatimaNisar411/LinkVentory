@@ -18,7 +18,7 @@ export class ApiException extends Error {
   }
 }
 
-const API_BASE_URL = 'http://localhost:8000' // TODO: Move to environment variable
+const API_BASE_URL = 'https://linkventory-production.up.railway.app'
 const REQUEST_TIMEOUT = 10000 // 10 seconds
 
 export async function apiRequest<T>(
