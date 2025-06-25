@@ -1,6 +1,7 @@
 # routers/categories.py
 from fastapi import APIRouter, Depends, HTTPException
 from models.category import Category
+from models.link import Link
 from models.user import User
 from auth import get_current_user
 from typing import List
@@ -48,8 +49,21 @@ async def delete_category(category_id: PydanticObjectId, user: User = Depends(ge
     category = await Category.get(category_id)
     if not category or category.user_id != str(user.id):
         raise HTTPException(status_code=404, detail="Category not found")
+    
+    # First, delete all links in this category (cascade delete)
+    links_to_delete = await Link.find(
+        Link.user_id == str(user.id),
+        Link.category_id == str(category_id)
+    ).to_list()
+    
+    # Delete all links in this category
+    for link in links_to_delete:
+        await link.delete()
+    
+    # Then delete the category itself
     await category.delete()
-    return {"message": "Category deleted"}
-
-class CategoryUpdate(BaseModel):
-    name: str
+    
+    return {
+        "message": "Category deleted",
+        "deleted_links_count": len(links_to_delete)
+    }
