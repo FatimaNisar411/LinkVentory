@@ -121,3 +121,138 @@ export async function signupUser(name: string, email: string, password: string) 
     body: JSON.stringify({ name, email, password }),
   })
 }
+
+// Dashboard API functions
+export interface Link {
+  id: string
+  title: string
+  url: string
+  note?: string
+  category_id?: string
+  user_id: string
+  created_at: string
+}
+
+export interface Category {
+  id: string
+  name: string
+  user_id: string
+  created_at: string
+}
+
+export interface User {
+  id: string
+  name: string
+  email: string
+}
+
+// Get current user info
+export async function getCurrentUser() {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<User>('/me/', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
+
+// Links API
+export async function getLinks() {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<Link[]>('/links/', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
+
+export async function getLinksForCategory(categoryId: string) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  console.log('getLinksForCategory called with categoryId:', categoryId)
+  
+  if (!categoryId || categoryId === 'undefined') {
+    throw new ApiException('Invalid category ID', 400, 'client')
+  }
+  
+  return apiRequest<Link[]>(`/links/category/${categoryId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
+
+export async function createLink(linkData: { title: string; url: string; note?: string; category_id?: string }) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<Link>('/links/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      title: linkData.title,
+      url: linkData.url,
+      note: linkData.note || null,
+      category_id: linkData.category_id || null,
+    }),
+  })
+}
+
+export async function updateLink(linkId: string, linkData: { title?: string; url?: string; note?: string; category_id?: string }) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<Link>(`/links/${linkId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(linkData),
+  })
+}
+
+export async function deleteLink(linkId: string) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<{ message: string }>(`/links/${linkId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
+
+// Categories API
+export async function getCategories() {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<Category[]>('/categories/', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
+
+export async function createCategory(name: string) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<Category>('/categories/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ 
+      name,
+    }),
+  })
+}

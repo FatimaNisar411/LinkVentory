@@ -7,14 +7,20 @@ from typing import List
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 
+class CategoryCreate(BaseModel):
+    name: str
+
 class CategoryUpdate(BaseModel):
     name: str
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 @router.post("/", response_model=Category)
-async def create_category(category: Category, user: User = Depends(get_current_user)):
-    category.user_id = str(user.id)
+async def create_category(category_data: CategoryCreate, user: User = Depends(get_current_user)):
+    category = Category(
+        user_id=str(user.id),
+        name=category_data.name
+    )
     await category.insert()
     return category
 
@@ -44,9 +50,6 @@ async def delete_category(category_id: PydanticObjectId, user: User = Depends(ge
         raise HTTPException(status_code=404, detail="Category not found")
     await category.delete()
     return {"message": "Category deleted"}
-
-
-from pydantic import BaseModel
 
 class CategoryUpdate(BaseModel):
     name: str

@@ -1,12 +1,16 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { WelcomeCard } from "@/components/dashboard/welcome_card"
 import CategorySelector from "@/components/dashboard/category_selector"
 import SortSelector, { SortOption } from "@/components/dashboard/sort_selector"
 import SearchBar from "@/components/dashboard/search_bar"
 import LinkCard  from "@/components/dashboard/link_card"
 import { AddLinkDialog } from "@/components/dashboard/add_link_dialog"
+import { EditLinkDialog } from "@/components/dashboard/edit_link_dialog"
 import AnalyticsChart from "@/components/dashboard/analytics_chart"
-import { searchLinks } from "@/lib/search";
+import { searchLinks } from "@/lib/search"
+import { getLinks, getLinksForCategory, getCategories, createLink, createCategory, updateLink, deleteLink, getCurrentUser, Link as ApiLink, Category, User } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
+import { useNavigate } from "react-router-dom"
 
 interface Link {
   _id: string
@@ -17,71 +21,184 @@ interface Link {
   timestamp: number // Timestamp in milliseconds
 }
 
-const dummyLinks: Link[] = [
-  {
-    _id: "1",
-    title: "React Docs",
-    url: "https://reactjs.org",
-    category: "Dev",
-    note: "Official documentation for React. Essential for understanding hooks and components.",
-    timestamp: 1719225600000, // June 24, 2025, 1:00:00 PM PKT
-  },
-  {
-    _id: "2",
-    title: "YouTube",
-    url: "https://www.youtube.com/", // Changed URL to a generic YouTube link
-    category: "Media",
-    note: "Primary platform for video content. Good for tutorials and entertainment.",
-    timestamp: 1719225700000, // June 24, 2025, 1:01:40 PM PKT
-  },
-  {
-    _id: "3", // New ID
-    title: "Awesome CSS Tricks",
-    url: "https://css-tricks.com/",
-    category: "Dev",
-    note: "A fantastic resource for learning modern CSS techniques and tips. Highly recommended for frontend developers!",
-    timestamp: 1719225800000, // June 24, 2025, 1:03:20 PM PKT - This will appear 'most recent' if sorted
-  },
-  // Adding one more link for variety
-  {
-    _id: "4",
-    title: "FastAPI Official Docs",
-    url: "https://fastapi.tiangolo.com/",
-    category: "Dev",
-    note: "The official documentation for FastAPI. Very comprehensive and well-written.",
-    timestamp: 1719225850000, // June 24, 2025, 1:04:10 PM PKT
-  },
-  {
-    _id: "5",
-    title: "Shadcn UI Showcase",
-    url: "https://ui.shadcn.com/docs",
-    category: "Dev",
-    // This link intentionally has NO note, so its button won't appear
-    timestamp: 1719225900000, // June 24, 2025, 1:05:00 PM PKT
-  },
-];
 
-// const dummyLinks: Link[] = [
-//   { _id: "1", title: "React Docs", url: "https://reactjs.org", category: "Dev" },
-//   { _id: "2", title: "YouTube", url: "https://youtube.com", category: "Media" },
-// ]
-
-const categories = ["All", "Dev", "Media"]
 
 export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedSort, setSelectedSort] = useState<SortOption>("recent")
   const [searchQuery, setSearchQuery] = useState("")
-  const [links, setLinks] = useState<Link[]>(dummyLinks)
+  const [links, setLinks] = useState<Link[]>([]) // Current filtered links
+  const [totalLinks, setTotalLinks] = useState(0) // Total links for stats
+  const [categories, setCategories] = useState<string[]>(["All"])
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingLink, setEditingLink] = useState<Link | null>(null)
+  const { toast } = useToast()
+  const navigate = useNavigate()
 
-  // First filter by category
-  const categoryFilteredLinks =
-    selectedCategory === "All"
-      ? links
-      : links.filter((link) => link.category === selectedCategory)
+  // Load data on component mount
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  // Then apply search
-  const searchFilteredLinks = searchLinks(categoryFilteredLinks, searchQuery)
+  // Load links when category changes
+  useEffect(() => {
+    if (categories.length > 1) { // Only load if categories are already loaded
+      loadLinksForCategory()
+    }
+  }, [selectedCategory])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      
+      // Load user, all links, and categories to get total stats
+      const [userData, allLinksData, categoriesData] = await Promise.all([
+        getCurrentUser(),
+        getLinks(), // Get ALL links for stats
+        getCategories()
+      ])
+
+      setUser(userData)
+      setTotalLinks(allLinksData.length) // Set total count for stats
+      
+      // Set categories
+      const categoryNames = ["All", ...categoriesData.map(cat => cat.name)]
+      console.log('Final category names for selector:', categoryNames)
+      setCategories(categoryNames)
+
+      // Load links for "All" category initially (this will set the `links` state)
+      await loadLinksForCategory("All", categoriesData)
+      
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error)
+      
+      // If unauthorized, redirect to login
+      if (error instanceof Error && error.message.includes('authentication')) {
+        localStorage.removeItem('token')
+        navigate('/login')
+        return
+      }
+      
+      toast({
+        title: "Failed to load data",
+        description: "Please refresh the page and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadLinksForCategory = async (category?: string, categoriesData?: Category[]) => {
+    try {
+      const targetCategory = category || selectedCategory
+      console.log('Loading links for category:', targetCategory)
+
+      let linksData: ApiLink[]
+      
+      if (targetCategory === "All") {
+        // Get all links
+        linksData = await getLinks()
+      } else {
+        // Get category data if not provided
+        if (!categoriesData) {
+          categoriesData = await getCategories()
+        }
+        
+        // Find the category ID (handle both 'id' and '_id' fields)
+        const categoryObj = categoriesData.find(cat => cat.name === targetCategory)
+        console.log('Looking for category:', targetCategory)
+        console.log('Available categories:', categoriesData)
+        console.log('Found category object:', categoryObj)
+        
+        if (categoryObj) {
+          const categoryId = (categoryObj as any).id || (categoryObj as any)._id || categoryObj.id
+          console.log('Category ID to use:', categoryId)
+          
+          if (categoryId && categoryId !== 'undefined') {
+            // Use the backend endpoint to get links for this specific category
+            console.log('Calling getLinksForCategory with ID:', categoryId)
+            linksData = await getLinksForCategory(categoryId)
+          } else {
+            console.error('Category ID is undefined for category:', categoryObj)
+            linksData = []
+          }
+        } else {
+          console.warn('Category not found:', targetCategory)
+          linksData = []
+        }
+      }
+
+      // Create a map of category ID to category name (if we have categoriesData)
+      let categoryMap = new Map<string, string>()
+      if (categoriesData) {
+        categoriesData.forEach(cat => {
+          const catId = (cat as any).id || (cat as any)._id || cat.id
+          if (catId) {
+            categoryMap.set(catId, cat.name)
+          }
+        })
+      } else {
+        // Fetch categories if we don't have them
+        const cats = await getCategories()
+        cats.forEach(cat => {
+          const catId = (cat as any).id || (cat as any)._id || cat.id
+          if (catId) {
+            categoryMap.set(catId, cat.name)
+          }
+        })
+      }
+      
+      console.log('Categories data:', categoriesData || 'refetched')
+      console.log('Category map:', categoryMap)
+      console.log('Links data from API:', linksData)
+      
+      // Convert API data to our Link interface
+      const convertedLinks: Link[] = linksData.map((apiLink: ApiLink) => {
+        const categoryName = apiLink.category_id ? categoryMap.get(apiLink.category_id) || "Uncategorized" : "Uncategorized"
+        // Handle both 'id' and '_id' fields from the API
+        const linkId = (apiLink as any).id || (apiLink as any)._id || apiLink.id
+        console.log(`Link "${apiLink.title}" - API ID: ${linkId}, category_id: ${apiLink.category_id}, mapped to: ${categoryName}`)
+        
+        return {
+          _id: linkId,
+          title: apiLink.title,
+          url: apiLink.url,
+          category: categoryName,
+          note: apiLink.note,
+          timestamp: new Date(apiLink.created_at).getTime()
+        }
+      })
+      
+      setLinks(convertedLinks)
+      
+    } catch (error) {
+      console.error('Failed to load links for category:', error)
+      toast({
+        title: "Failed to load links",
+        description: "Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const refreshTotalStats = async () => {
+    try {
+      const [allLinksData, categoriesData] = await Promise.all([
+        getLinks(),
+        getCategories()
+      ])
+      setTotalLinks(allLinksData.length)
+      setCategories(["All", ...categoriesData.map(cat => cat.name)])
+    } catch (error) {
+      console.error('Failed to refresh total stats:', error)
+    }
+  }
+
+  // Apply search to current links (no category filtering needed since server handles it)
+  const searchFilteredLinks = searchLinks(links, searchQuery)
 
   // Finally sort the results
   const sortedLinks = [...searchFilteredLinks].sort((a, b) => {
@@ -92,21 +209,167 @@ export default function Dashboard() {
     }
   })
 
-  const handleAddLink = (title: string, url: string) => {
-    const newLink: Link = {
-      _id: Date.now().toString(),
-      title,
-      url,
-      category: selectedCategory === "All" ? "Uncategorized" : selectedCategory,
-      timestamp: Date.now()
+  const handleAddLink = async (title: string, url: string, category: string, note?: string) => {
+    try {
+      // Check if category exists, create if it doesn't
+      let categoryId: string | undefined = undefined
+      
+      if (category !== "Uncategorized") {
+        if (!categories.includes(category)) {
+          // Create new category
+          try {
+            console.log('Creating new category:', category)
+            const newCategory = await createCategory(category)
+            console.log('Created new category:', newCategory)
+            categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
+            console.log('New category ID:', categoryId)
+            
+            // Add the new category to our local state
+            setCategories(prev => [...prev, category])
+          } catch (error) {
+            console.error('Failed to create category:', error)
+          }
+        } else {
+          // Find the category ID for existing category
+          const categoriesData = await getCategories()
+          const existingCategory = categoriesData.find(cat => cat.name === category)
+          if (existingCategory) {
+            categoryId = (existingCategory as any).id || (existingCategory as any)._id || existingCategory.id
+            console.log('Using existing category ID:', categoryId)
+          }
+        }
+      }
+      
+      console.log('Final category ID for link creation:', categoryId)
+      
+      // Create link via API
+      const newApiLink = await createLink({
+        title,
+        url,
+        note,
+        category_id: categoryId
+      })
+      
+      // Reload current category view and refresh total stats
+      await Promise.all([
+        loadLinksForCategory(),
+        refreshTotalStats()
+      ])
+      
+      toast({
+        title: "Link added successfully!",
+        description: `"${title}" has been added to your collection.`,
+      })
+      
+    } catch (error) {
+      console.error('Failed to add link:', error)
+      toast({
+        title: "Failed to add link",
+        description: "Please try again.",
+        variant: "destructive",
+      })
     }
-    setLinks((prev) => [...prev, newLink])
+  }
+
+  const handleEditLink = (link: Link) => {
+    setEditingLink(link)
+    setEditDialogOpen(true)
+  }
+
+  const handleUpdateLink = async (id: string, title: string, url: string, category: string, note?: string) => {
+    console.log('Update link called with ID:', id)
+    
+    try {
+      // Check if category exists, create if it doesn't
+      let categoryId: string | undefined = undefined
+      
+      if (category !== "Uncategorized") {
+        if (!categories.includes(category)) {
+          // Create new category
+          try {
+            console.log('Creating new category during update:', category)
+            const newCategory = await createCategory(category)
+            console.log('Created new category:', newCategory)
+            categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
+            
+            // Add the new category to our local state
+            setCategories(prev => [...prev, category])
+          } catch (error) {
+            console.error('Failed to create category:', error)
+          }
+        } else {
+          // Find the category ID for existing category
+          const categoriesData = await getCategories()
+          const existingCategory = categoriesData.find(cat => cat.name === category)
+          if (existingCategory) {
+            categoryId = (existingCategory as any).id || (existingCategory as any)._id || existingCategory.id
+          }
+        }
+      }
+
+      // Update link via API
+      const updatedApiLink = await updateLink(id, {
+        title,
+        url,
+        note,
+        category_id: categoryId
+      })
+
+      // Reload current category view and refresh total stats
+      await Promise.all([
+        loadLinksForCategory(),
+        refreshTotalStats()
+      ])
+
+      toast({
+        title: "Link updated successfully!",
+        description: `"${title}" has been updated.`,
+      })
+
+    } catch (error) {
+      console.error('Failed to update link:', error)
+      toast({
+        title: "Failed to update link",
+        description: "Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteLink = async (link: Link) => {
+    console.log('Delete link called with:', link)
+    console.log('Link ID:', link._id)
+    
+    if (confirm(`Are you sure you want to delete "${link.title}"?`)) {
+      try {
+        await deleteLink(link._id)
+        
+        // Reload current category view and refresh total stats
+        await Promise.all([
+          loadLinksForCategory(),
+          refreshTotalStats()
+        ])
+        
+        toast({
+          title: "Link deleted successfully!",
+          description: `"${link.title}" has been removed.`,
+        })
+        
+      } catch (error) {
+        console.error('Failed to delete link:', error)
+        toast({
+          title: "Failed to delete link",
+          description: "Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
   }
   return (
   <div className="p-6 space-y-6">
     <WelcomeCard
-      name="Fatima"
-      totalLinks={links.length}
+      name={user?.name || "User"}
+      totalLinks={totalLinks}
       totalCategories={categories.length - 1}
     />
 
@@ -143,15 +406,22 @@ export default function Dashboard() {
           url={link.url}
           note={link.note}
           timestamp={link.timestamp}
-          onEdit={() => console.log("Edit", link._id)}
-          onDelete={() => console.log("Delete", link._id)}
+          onEdit={() => handleEditLink(link)}
+          onDelete={() => handleDeleteLink(link)}
         />
       ))}
     </div>
 
 
 
-    <AddLinkDialog onAdd={handleAddLink} />
+    <AddLinkDialog onAdd={handleAddLink} categories={categories} />
+    <EditLinkDialog 
+      open={editDialogOpen}
+      onOpenChange={setEditDialogOpen}
+      onUpdate={handleUpdateLink}
+      categories={categories}
+      linkData={editingLink}
+    />
   </div>
 );
 

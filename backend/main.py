@@ -27,7 +27,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://linkventory.pages.dev"  # Production frontend
+        "https://linkventory.pages.dev",  # Production frontend
+        "https://*.railway.app"  # Railway deployment
     ],
     allow_credentials=True,
     allow_methods=["*"],

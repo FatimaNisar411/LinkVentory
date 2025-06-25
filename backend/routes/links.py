@@ -14,6 +14,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class LinkCreate(BaseModel):
+    url: HttpUrl
+    title: str
+    note: Optional[str] = None
+    category_id: Optional[str] = None
+
+
 class LinkUpdate(BaseModel):
     url: Optional[HttpUrl] = None
     title: Optional[str] = None
@@ -24,8 +31,14 @@ class LinkUpdate(BaseModel):
 router = APIRouter(prefix="/links", tags=["Links"])
 
 @router.post("/", response_model=Link)
-async def create_link(link: Link, user: User = Depends(get_current_user)):
-    link.user_id = str(user.id)
+async def create_link(link_data: LinkCreate, user: User = Depends(get_current_user)):
+    link = Link(
+        user_id=str(user.id),
+        url=link_data.url,
+        title=link_data.title,
+        note=link_data.note,
+        category_id=link_data.category_id
+    )
     await link.insert()
     return link
 
@@ -37,7 +50,13 @@ async def get_links(
     query = Link.user_id == str(user.id)
     if category_id:
         query = query & (Link.category_id == category_id)
-    return await Link.find(query).to_list()
+    links = await Link.find(query).to_list()
+    
+    # Debug logging
+    for link in links:
+        logger.info(f"Link: {link.title}, ID: {link.id}, Category ID: {link.category_id}")
+    
+    return links
 
 
 # @router.put("/{link_id}", response_model=Link)
@@ -51,6 +70,7 @@ async def get_links(
 #     await link.save()
 #     return link
 @router.patch("/{link_id}", response_model=Link)
+@router.patch("/{link_id}/", response_model=Link)
 async def update_link(link_id: PydanticObjectId, updated: LinkUpdate, user: User = Depends(get_current_user)):
     link = await Link.get(link_id)
     if not link or link.user_id != str(user.id):
@@ -66,6 +86,7 @@ async def update_link(link_id: PydanticObjectId, updated: LinkUpdate, user: User
 
 
 @router.delete("/{link_id}")
+@router.delete("/{link_id}/")
 async def delete_link(link_id: PydanticObjectId, user: User = Depends(get_current_user)):
     link = await Link.get(link_id)
     if not link or link.user_id != str(user.id):
