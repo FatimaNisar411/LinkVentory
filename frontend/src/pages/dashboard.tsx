@@ -6,7 +6,6 @@ import SearchBar from "@/components/dashboard/search_bar"
 import LinkCard  from "@/components/dashboard/link_card"
 import { AddLinkDialog } from "@/components/dashboard/add_link_dialog"
 import { EditLinkDialog } from "@/components/dashboard/edit_link_dialog"
-import LoadingSpinner from "@/components/ui/loading-spinner"
 import AnalyticsChart from "@/components/dashboard/analytics_chart"
 import { searchLinks } from "@/lib/search"
 import { getLinks, getLinksForCategory, getCategories, createLink, createCategory, updateLink, deleteLink, deleteCategory, getCurrentUser, Link as ApiLink, Category, User } from "@/lib/api"
@@ -70,6 +69,8 @@ export default function Dashboard() {
       
       // Set categories
       setCategoriesData(categoriesData) // Store full category objects
+      const categoryNames = ["All", ...categoriesData.map(cat => cat.name)]
+      console.log('Final category names for selector:', categoryNames)
 
       // Load links for "All" category initially (this will set the `links` state)
       await loadLinksForCategory("All", categoriesData)
@@ -97,6 +98,7 @@ export default function Dashboard() {
   const loadLinksForCategory = async (category?: string, categoriesData?: Category[]) => {
     try {
       const targetCategory = category || selectedCategory
+      console.log('Loading links for category:', targetCategory)
 
       let linksData: ApiLink[]
       
@@ -111,12 +113,17 @@ export default function Dashboard() {
         
         // Find the category ID (handle both 'id' and '_id' fields)
         const categoryObj = categoriesData.find(cat => cat.name === targetCategory)
+        console.log('Looking for category:', targetCategory)
+        console.log('Available categories:', categoriesData)
+        console.log('Found category object:', categoryObj)
         
         if (categoryObj) {
           const categoryId = (categoryObj as any).id || (categoryObj as any)._id || categoryObj.id
+          console.log('Category ID to use:', categoryId)
           
           if (categoryId && categoryId !== 'undefined') {
             // Use the backend endpoint to get links for this specific category
+            console.log('Calling getLinksForCategory with ID:', categoryId)
             linksData = await getLinksForCategory(categoryId)
           } else {
             console.error('Category ID is undefined for category:', categoryObj)
@@ -148,11 +155,16 @@ export default function Dashboard() {
         })
       }
       
+      console.log('Categories data:', categoriesData || 'refetched')
+      console.log('Category map:', categoryMap)
+      console.log('Links data from API:', linksData)
+      
       // Convert API data to our Link interface
       const convertedLinks: Link[] = linksData.map((apiLink: ApiLink) => {
         const categoryName = apiLink.category_id ? categoryMap.get(apiLink.category_id) || "Uncategorized" : "Uncategorized"
         // Handle both 'id' and '_id' fields from the API
         const linkId = (apiLink as any).id || (apiLink as any)._id || apiLink.id
+        console.log(`Link "${apiLink.title}" - API ID: ${linkId}, category_id: ${apiLink.category_id}, mapped to: ${categoryName}`)
         
         return {
           _id: linkId,
@@ -210,8 +222,11 @@ export default function Dashboard() {
         if (!categoryNames.includes(category)) {
           // Create new category
           try {
+            console.log('Creating new category:', category)
             const newCategory = await createCategory(category)
+            console.log('Created new category:', newCategory)
             categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
+            console.log('New category ID:', categoryId)
             
             // Add the new category to our local state
             setCategoriesData(prev => [...prev, newCategory])
@@ -223,9 +238,12 @@ export default function Dashboard() {
           const existingCategory = categoriesData.find(cat => cat.name === category)
           if (existingCategory) {
             categoryId = (existingCategory as any).id || (existingCategory as any)._id || existingCategory.id
+            console.log('Using existing category ID:', categoryId)
           }
         }
       }
+      
+      console.log('Final category ID for link creation:', categoryId)
       
       // Create link via API
       const newApiLink = await createLink({
@@ -262,6 +280,8 @@ export default function Dashboard() {
   }
 
   const handleUpdateLink = async (id: string, title: string, url: string, category: string, note?: string) => {
+    console.log('Update link called with ID:', id)
+    
     try {
       // Check if category exists, create if it doesn't
       let categoryId: string | undefined = undefined
@@ -270,7 +290,9 @@ export default function Dashboard() {
         if (!categoryNames.includes(category)) {
           // Create new category
           try {
+            console.log('Creating new category during update:', category)
             const newCategory = await createCategory(category)
+            console.log('Created new category:', newCategory)
             categoryId = (newCategory as any).id || (newCategory as any)._id || newCategory.id
             
             // Add the new category to our local state
@@ -317,6 +339,9 @@ export default function Dashboard() {
   }
 
   const handleDeleteLink = async (link: Link) => {
+    console.log('Delete link called with:', link)
+    console.log('Link ID:', link._id)
+    
     if (confirm(`Are you sure you want to delete "${link.title}"?`)) {
       try {
         await deleteLink(link._id)
@@ -346,6 +371,7 @@ export default function Dashboard() {
   const handleDeleteCategory = async (category: Category) => {
     try {
       const categoryId = (category as any).id || (category as any)._id || category.id
+      console.log('Deleting category:', category.name, 'with ID:', categoryId)
       
       await deleteCategory(categoryId)
       
@@ -388,14 +414,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-gray-600">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return <div className="p-6">Loading...</div>
   }
   
   return (

@@ -29,7 +29,10 @@ export async function apiRequest<T>(
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`
+    console.log('Making API request to:', url)
+    
+    const response = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -39,9 +42,11 @@ export async function apiRequest<T>(
     })
 
     clearTimeout(timeoutId)
+    console.log('Response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
+      console.log('Error response data:', errorData)
       const message = errorData.detail || getErrorMessage(response.status)
       
       throw new ApiException(
@@ -51,7 +56,9 @@ export async function apiRequest<T>(
       )
     }
 
-    return await response.json()
+    const data = await response.json()
+    console.log('Success response data:', data)
+    return data
   } catch (error) {
     clearTimeout(timeoutId)
 
@@ -149,7 +156,11 @@ export interface User {
 // Get current user info
 export async function getCurrentUser() {
   const token = localStorage.getItem('token')
+  console.log('Token from localStorage:', token ? 'Token exists' : 'No token found')
+  
   if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  console.log('Making request to:', `${API_BASE_URL}/me/`)
   
   return apiRequest<User>('/me/', {
     headers: {
