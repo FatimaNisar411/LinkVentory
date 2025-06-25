@@ -33,10 +33,17 @@ router = APIRouter(prefix="/links", tags=["Links"])
 @router.post("/", response_model=Link)
 async def create_link(link_data: LinkCreate, user: User = Depends(get_current_user)):
     try:
-        # Add basic URL validation
-        url = str(link_data.url)
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
+        # FORCE HTTPS for Cloudflare Pages compatibility
+        url = str(link_data.url).strip()
+        
+        # Remove any existing protocol
+        if url.startswith('http://'):
+            url = url[7:]
+        elif url.startswith('https://'):
+            url = url[8:]
+        
+        # Always force HTTPS
+        url = 'https://' + url
             
         link = Link(
             user_id=str(user.id),
@@ -46,7 +53,7 @@ async def create_link(link_data: LinkCreate, user: User = Depends(get_current_us
             category_id=link_data.category_id
         )
         await link.insert()
-        logger.info(f"Created link {link.id} for user {user.id}")
+        logger.info(f"Created HTTPS link {link.id} for user {user.id}: {url}")
         return link
     except Exception as e:
         logger.error(f"Error creating link: {e}")
@@ -87,6 +94,21 @@ async def update_link(link_id: PydanticObjectId, updated: LinkUpdate, user: User
         raise HTTPException(status_code=404, detail="Link not found")
     
     update_data = updated.dict(exclude_unset=True)  # Only fields sent in request
+    
+    # Force HTTPS for any URL updates (Cloudflare Pages compatibility)
+    if "url" in update_data and update_data["url"]:
+        url = str(update_data["url"]).strip()
+        
+        # Remove any existing protocol
+        if url.startswith('http://'):
+            url = url[7:]
+        elif url.startswith('https://'):
+            url = url[8:]
+        
+        # Always force HTTPS
+        update_data["url"] = 'https://' + url
+        logger.info(f"Updated URL to HTTPS: {update_data['url']}")
+    
     for field, value in update_data.items():
         setattr(link, field, value)
     

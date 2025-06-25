@@ -18,24 +18,24 @@ export class ApiException extends Error {
   }
 }
 
-// FORCE HTTPS - DO NOT USE HTTP FOR SECURITY!
+// FORCE HTTPS - CLOUDFLARE PAGES REQUIREMENT!
 const API_BASE_URL = 'https://linkventory-production.up.railway.app'
 const REQUEST_TIMEOUT = 10000 // 10 seconds
 
-// Production safety checks
-const isProduction = window.location.protocol === 'https:' && 
-  (window.location.hostname.includes('.pages.dev') || window.location.hostname.includes('linkventory'))
+// Cloudflare Pages ONLY works with HTTPS
+const isCloudflarePages = window.location.hostname.includes('.pages.dev')
 
 // Ensure HTTPS is always used - convert any HTTP to HTTPS
 let SECURE_API_BASE_URL = API_BASE_URL.replace(/^http:\/\//i, 'https://')
 
-// In production, absolutely enforce HTTPS
-if (isProduction && !SECURE_API_BASE_URL.startsWith('https://')) {
-  throw new Error('Production environment requires HTTPS API endpoints!')
+// On Cloudflare Pages, absolutely enforce HTTPS
+if (isCloudflarePages && !SECURE_API_BASE_URL.startsWith('https://')) {
+  throw new Error('Cloudflare Pages requires HTTPS API endpoints!')
 }
 
+// Double-check HTTPS enforcement
 if (!SECURE_API_BASE_URL.startsWith('https://')) {
-  console.warn('WARNING: API is not using HTTPS! This is only acceptable in development.')
+  SECURE_API_BASE_URL = 'https://' + SECURE_API_BASE_URL.replace(/^https?:\/\//, '')
 }
 
 export async function apiRequest<T>(
