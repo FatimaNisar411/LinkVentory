@@ -3,6 +3,6 @@ pydantic[email]
 fastapi
 uvicorn[standard]
 passlib[bcrypt]
-python-jose[cryptography]git
+python-jose[cryptography]
 python-dotenv
 motor
