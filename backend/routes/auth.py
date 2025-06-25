@@ -19,25 +19,31 @@ class LoginRequest(BaseModel):
 
 @router.post("/signup")
 async def signup(user: SignUpRequest):
-    existing = await User.find_one(User.email == user.email)
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    new_user = User(
-        name=user.name,
-        email=user.email,
-        password=hash_password(user.password)  # still saving as .password, just hashed
-    )
-    await new_user.insert()
+    try:
+        existing = await User.find_one(User.email == user.email)
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        new_user = User(
+            name=user.name,
+            email=user.email,
+            password=hash_password(user.password)  # still saving as .password, just hashed
+        )
+        await new_user.insert()
 
-    # 🔐 Generate token
-    token = create_access_token({"sub": new_user.email})
+        # 🔐 Generate token
+        token = create_access_token({"sub": new_user.email})
 
-    return {
-        "message": "User created",
-        "access_token": token,
-        "token_type": "bearer"
-    }
+        return {
+            "message": "User created",
+            "access_token": token,
+            "token_type": "bearer"
+        }
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        print(f"Signup error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during signup")
 
 
 

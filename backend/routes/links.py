@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class LinkCreate(BaseModel):
-    url: HttpUrl
+    url: str  # Changed from HttpUrl to str for more flexibility
     title: str
     note: Optional[str] = None
     category_id: Optional[str] = None
 
 
 class LinkUpdate(BaseModel):
-    url: Optional[HttpUrl] = None
+    url: Optional[str] = None  # Changed from HttpUrl to str
     title: Optional[str] = None
     note: Optional[str] = None
     category_id: Optional[str] = None
@@ -32,15 +32,25 @@ router = APIRouter(prefix="/links", tags=["Links"])
 
 @router.post("/", response_model=Link)
 async def create_link(link_data: LinkCreate, user: User = Depends(get_current_user)):
-    link = Link(
-        user_id=str(user.id),
-        url=link_data.url,
-        title=link_data.title,
-        note=link_data.note,
-        category_id=link_data.category_id
-    )
-    await link.insert()
-    return link
+    try:
+        # Add basic URL validation
+        url = str(link_data.url)
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            
+        link = Link(
+            user_id=str(user.id),
+            url=url,
+            title=link_data.title,
+            note=link_data.note,
+            category_id=link_data.category_id
+        )
+        await link.insert()
+        logger.info(f"Created link {link.id} for user {user.id}")
+        return link
+    except Exception as e:
+        logger.error(f"Error creating link: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create link")
 
 @router.get("/", response_model=List[Link])
 async def get_links(
