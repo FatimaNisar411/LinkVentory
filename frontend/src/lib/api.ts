@@ -21,6 +21,8 @@ export class ApiException extends Error {
 const API_BASE_URL = 'https://linkventory-production.up.railway.app'
 const REQUEST_TIMEOUT = 10000 // 10 seconds
 
+console.log('API_BASE_URL configured as:', API_BASE_URL)
+
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
