@@ -22,19 +22,32 @@ export class ApiException extends Error {
 const API_BASE_URL = 'https://linkventory-production.up.railway.app'
 const REQUEST_TIMEOUT = 10000 // 10 seconds
 
-// Force HTTPS and add cache busting
+// Production safety checks
+const isProduction = window.location.protocol === 'https:' && 
+  (window.location.hostname.includes('.pages.dev') || window.location.hostname.includes('linkventory'))
+
 console.log('=== API CONFIGURATION ===')
+console.log('Environment check - isProduction:', isProduction)
+console.log('Current hostname:', window.location.hostname)
+console.log('Current protocol:', window.location.protocol)
 console.log('API_BASE_URL configured as:', API_BASE_URL)
 console.log('Current timestamp for cache busting:', Date.now())
-console.log('Deployment version:', '2025-06-25-v3') // Cache buster
+console.log('Deployment version:', '2025-06-25-v4-https-fix') // Cache buster
 
-// Ensure HTTPS is always used
-if (API_BASE_URL.startsWith('http://')) {
-  throw new Error('API_BASE_URL must use HTTPS for security!')
+// Ensure HTTPS is always used - convert any HTTP to HTTPS
+let SECURE_API_BASE_URL = API_BASE_URL.replace(/^http:\/\//i, 'https://')
+
+// In production, absolutely enforce HTTPS
+if (isProduction && !SECURE_API_BASE_URL.startsWith('https://')) {
+  throw new Error('Production environment requires HTTPS API endpoints!')
+}
+
+if (!SECURE_API_BASE_URL.startsWith('https://')) {
+  console.warn('WARNING: API is not using HTTPS! This is only acceptable in development.')
 }
 
 // Double check the URL construction
-const testUrl = `${API_BASE_URL}/ping`
+const testUrl = `${SECURE_API_BASE_URL}/ping`
 console.log('Test URL construction:', testUrl)
 if (testUrl.includes('http://')) {
   throw new Error('URL construction is creating HTTP instead of HTTPS!')
@@ -48,7 +61,7 @@ export async function apiRequest<T>(
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
   try {
-    const url = `${API_BASE_URL}${endpoint}`
+    const url = `${SECURE_API_BASE_URL}${endpoint}`
     console.log('Making API request to:', url)
     
     const response = await fetch(url, {
@@ -179,7 +192,7 @@ export async function getCurrentUser() {
   
   if (!token) throw new ApiException('No authentication token', 401, 'client')
   
-  console.log('Making request to:', `${API_BASE_URL}/me/`)
+  console.log('Making request to:', `${SECURE_API_BASE_URL}/me/`)
   
   return apiRequest<User>('/me/', {
     headers: {
