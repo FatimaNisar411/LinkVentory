@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from db import init_db
 from models.user import User
 from models.link import Link
@@ -23,12 +23,34 @@ app.include_router(user.router)
 app.include_router(category_router)
 app.include_router(link_router)
 
+# Debug middleware to log CORS headers
+@app.middleware("http")
+async def debug_cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    method = request.method
+    print(f"🌐 Request: {method} {request.url} from origin: {origin}")
+    
+    response = await call_next(request)
+    
+    # Log response headers for debugging
+    cors_headers = {
+        "access-control-allow-origin": response.headers.get("access-control-allow-origin"),
+        "access-control-allow-methods": response.headers.get("access-control-allow-methods"), 
+        "access-control-allow-headers": response.headers.get("access-control-allow-headers"),
+    }
+    print(f"📤 Response CORS headers: {cors_headers}")
+    
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
+        "http://localhost:3000",  # Alternative local port
+        "http://127.0.0.1:5173",  # Local IP
+        "http://127.0.0.1:3000",  # Alternative local IP
         "https://linkventory.pages.dev",  # Production frontend
-        "https://*.linkventory.pages.dev",  # All Cloudflare Pages subdomains
+        "https://*.pages.dev",  # All Cloudflare Pages subdomains
         "https://linkventory-production.up.railway.app"  # Backend itself
     ],
     allow_credentials=True,
