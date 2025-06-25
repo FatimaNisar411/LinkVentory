@@ -18,10 +18,27 @@ export class ApiException extends Error {
   }
 }
 
+// FORCE HTTPS - DO NOT USE HTTP FOR SECURITY!
 const API_BASE_URL = 'https://linkventory-production.up.railway.app'
 const REQUEST_TIMEOUT = 10000 // 10 seconds
 
+// Force HTTPS and add cache busting
+console.log('=== API CONFIGURATION ===')
 console.log('API_BASE_URL configured as:', API_BASE_URL)
+console.log('Current timestamp for cache busting:', Date.now())
+console.log('Deployment version:', '2025-06-25-v3') // Cache buster
+
+// Ensure HTTPS is always used
+if (API_BASE_URL.startsWith('http://')) {
+  throw new Error('API_BASE_URL must use HTTPS for security!')
+}
+
+// Double check the URL construction
+const testUrl = `${API_BASE_URL}/ping`
+console.log('Test URL construction:', testUrl)
+if (testUrl.includes('http://')) {
+  throw new Error('URL construction is creating HTTP instead of HTTPS!')
+}
 
 export async function apiRequest<T>(
   endpoint: string,
