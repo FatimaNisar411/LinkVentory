@@ -256,3 +256,15 @@ export async function createCategory(name: string) {
     }),
   })
 }
+
+export async function deleteCategory(categoryId: string) {
+  const token = localStorage.getItem('token')
+  if (!token) throw new ApiException('No authentication token', 401, 'client')
+  
+  return apiRequest<{ message: string }>(`/categories/${categoryId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+}
