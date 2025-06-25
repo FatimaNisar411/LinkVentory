@@ -88,6 +88,14 @@ export async function apiRequest<T>(
     }
 
     if (error instanceof TypeError && error.message.includes('fetch')) {
+      // Check if it's specifically a CORS error
+      if (error.message.includes('CORS') || error.message.includes('blocked')) {
+        throw new ApiException(
+          'Unable to connect to server due to security restrictions. Please check that the backend CORS is properly configured.',
+          0,
+          'network'
+        )
+      }
       throw new ApiException(
         'Unable to connect to server. Please check your internet connection.',
         0,
@@ -286,4 +294,25 @@ export async function deleteCategory(categoryId: string) {
       'Authorization': `Bearer ${token}`,
     },
   })
+}
+
+// CORS debugging helper
+export async function checkCORS() {
+  try {
+    const response = await fetch(`${SECURE_API_BASE_URL}/ping`, {
+      method: 'OPTIONS',
+    })
+    
+    const corsHeaders = {
+      'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+      'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+      'access-control-allow-headers': response.headers.get('access-control-allow-headers'),
+    }
+    
+    console.log('CORS Headers:', corsHeaders)
+    return corsHeaders
+  } catch (error) {
+    console.error('CORS check failed:', error)
+    return null
+  }
 }
